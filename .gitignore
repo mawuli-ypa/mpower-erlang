@@ -1,10 +1,7 @@
 .mpower_dialyzer.plt
 erl_crash.dump
-priv/config
 *.beam
 rebar
-dump.rdb
-test/
 deps/
 ebin/
 doc/

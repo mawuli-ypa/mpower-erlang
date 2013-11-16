@@ -24,10 +24,10 @@ Start an Erlang shell and type the following:
 %% debug mode is set to false by default so all API requests
 %% go to the LIVE server by default. To run in debug mode, do:
 2> application:set_env(mpower, debug, true).
-API_KEYS = [{master_key, "YOUR MPower MASTER KEY HERE"},
+3> API_KEYS = [{master_key, "YOUR MPower MASTER KEY HERE"},
              {public_key, "YOUR MPower PUBLIC KEY"},
              {token, "Your MPower token here"}],
-3> application:set_env(mpower, api_keys, API_KEYS).
+4> application:set_env(mpower, api_keys, API_KEYS).
 ````
 
 See the `test/mpower_test.erl` file for examples of how to use the library
