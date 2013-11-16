@@ -11,8 +11,8 @@
 %%% types
 %%%-------------------------------------------------------------------
 -type response_code() :: integer().
--type response_text() :: string().
--type response_message() :: string().
+-type response_text() :: binary().
+-type response_data() :: binary().
 -type invoice_status() :: pending | cancelled | completed.
 -type mpower_account() :: pos_integer().
 -type proplist()     :: [{term(), term()}].  % predefined in newer releases
@@ -57,10 +57,12 @@
                      total_amount :: amount(),
                      store :: #mpower_store{}
                     }).
--record(mpower_api_response, {code :: response_code(), 
-                              text :: response_text(), 
-                              message :: response_message()
-                             }).
+-record(mpower_response, {success :: true | false,
+                          code :: response_code(), 
+                          text :: response_text(), 
+                          data :: response_data(),
+                          http_status :: integer()
+                         }).
 
 %%%-------------------------------------------------------------------
 %%% miscellaneous
@@ -72,12 +74,16 @@
                          {token, "ff1d576409b2587cc1c2"}
                          ]). 
 %% Sandbox Endpoint
--define(SANDBOX_ENDPOINT, "https://app.mpowerpayments.com/sandbox-api/" ++ ?API_VERSION).
+-define(SANDBOX_ENDPOINT, "https://app.mpowerpayments.com/sandbox-api/" ++ ?API_VERSION ++ "/").
 
 %% Live Endpoint
--define(LIVE_ENDPOINT, "https://app.mpowerpayments.com/api/" ++ ?API_VERSION).
+-define(LIVE_ENDPOINT, "https://app.mpowerpayments.com/api/" ++ ?API_VERSION ++ "/").
 
 %% user-agent headers
 -define(MP_USER_AGENT, "mpower-erlang/v0.1.0").
 
 -define(APP_NAME, mpower).
+%%timeout for HTTP requests
+-define(HTTP_TIMEOUT, 10000).
+%% All successful MPower requests have "00" as the response code
+-define(MPOWER_API_SUCCESS_CODE, <<"00">>).

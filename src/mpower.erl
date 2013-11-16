@@ -10,12 +10,12 @@
 -author("Mawuli Adzaku <mawuli@mawuli.me>").
 -include("mpower.hrl").
 %% MPower Payments API calls
--export([opr_create/1,
-         opr_charge/2,        
-         invoice_create/1,
-         invoice_confirm/1,
-         direct_pay_credit_account/1,
-         direct_card_process/1
+-export([create_opr/1,
+         charge_opr/2,        
+         create_invoice/1,
+         confirm_invoice/1,
+         credit_account/1,
+         process_card/1
         ]).
 
 -export([request_headers/0,
@@ -27,47 +27,72 @@
 %%% Invoice
 %%%-------------------------------------------------------------------
 %% @doc Create a new invoice
--spec invoice_create(Invoice) -> http_response() when
+-spec create_invoice(Invoice) -> http_response() when
       Invoice :: #mpower_invoice{} | proplist().
-invoice_create(Invoice) ->
+create_invoice(Invoice) when is_record(Invoice, mpower_invoice) ->
+    ok;
+create_invoice(Invoice) ->
     ok.
 
 %% @doc Returns the status of the invoice
--spec invoice_confirm(Token :: mpower_token()) -> http_response().
-invoice_confirm(Token) ->
-    ok.
-
+-spec confirm_invoice(Token :: mpower_token()) -> http_response().
+confirm_invoice(Token) ->
+    Url = get_rsc_endpoint(invoice_confirm) ++ Token,
+    Res = http_get(Url),
+    Res.
 
 %%%-------------------------------------------------------------------
 %%% Direct payments: direct card and direct pay
 %%%-------------------------------------------------------------------
 %% @doc Directly transfer funds between MPower accounts
--spec direct_pay_credit_account(Transaction) -> http_response() when
+-spec credit_account(Transaction) -> http_response() when
       Transaction :: #mpower_directpay{} | proplist().
-direct_pay_credit_account(Transaction) ->
-    ok.
+credit_account(Transaction) when is_record(Transaction, mpower_directpay)->
+    Url = get_rsc_endpoint(directpay_process),
+    Res = http_post(Url, [{account_alias, Transaction#mpower_directpay.account_alias},
+                          {amount, Transaction#mpower_directpay.amount}
+                         ]),
+    Res;
+credit_account(Transaction) ->
+    Url = get_rsc_endpoint(directpay_process),
+    Res = http_post(Url, Transaction),
+    Res.
 
 %% @doc Directly bill/charge a credit through MPower 
--spec direct_card_process(Card) -> http_response() when
+-spec process_card(Card) -> http_response() when
       Card :: #mpower_directcard{} | proplist().
-direct_card_process(Card) ->
-    ok.
+process_card(Card) when is_record(Card, mpower_directcard) ->
+    Url = get_rsc_endpoint(directpay_process),
+    Res = http_post(Url, [{card_name, Card#mpower_directcard.card_name},
+                          {card_number, Card#mpower_directcard.card_number},
+                          {card_cvc, Card#mpower_directcard.card_cvc},
+                          {exp_month, Card#mpower_directcard.exp_month},
+                          {exp_year, Card#mpower_directcard.exp_year},
+                          {amount, Card#mpower_directcard.amount}
+                         ]),
+    Res;
+process_card(Card) ->
+    Url = get_rsc_endpoint(directpay_process),
+    Res = http_post(Url, Card),
+    Res.
 
 %%%-------------------------------------------------------------------
 %%% OPR
 %%%-------------------------------------------------------------------
 %% @doc initiate an OPR(Onsite Payment Request)
--spec opr_create(Data) -> http_response() when
+-spec create_opr(Data) -> http_response() when
       Data ::  #mpower_opr{} | proplist().
-opr_create(Data) ->
+create_opr(Data)  when is_record(Data, mpower_opr) ->
+    ok;
+create_opr(Data) ->
     ok.
 
 %% @doc Second and final stage of an OPR process.
 %%      This completes the OPR.
--spec opr_charge(OPRToken, ConfirmationToken) -> http_response() when
+-spec charge_opr(OPRToken, ConfirmationToken) -> http_response() when
       OPRToken :: mpower_token(),
       ConfirmationToken :: mpower_token().
-opr_charge(OPRToken, ConfirmationToken) ->
+charge_opr(OPRToken, ConfirmationToken) ->
     ok.
 
 %%%-------------------------------------------------------------------
@@ -112,24 +137,23 @@ debug_mode() ->
     end.
 
 %% @doc make an HTTP GET request
--spec get(Url :: string()) -> http_response().
-get(Url) ->
-    {ok, {{_, StatusCode, _}, _, Body}} =  httpc:request(get, {Url, request_headers(),
-                                                                "application/json",
-                                                                []}, [], []
-                                                        ),
-    {StatusCode == 200, jiffy:decode(Body)}.
+-spec http_get(Url :: string()) -> http_response().
+http_get(Url) ->
+    {ok, {{StatusCode, _}, _, Json}} = lhttpc:request(Url, "GET",
+                                                      request_headers(),
+                                                      ?HTTP_TIMEOUT
+                                                     ),
+    parse_api_response(StatusCode, Json).
 
 %% @doc send an HTTP POST request
-%% R = httpc:request(Method, {URL, Header, Type, Body}, HTTPOptions, Options),
-%% {ok, {{"HTTP/1.1",ReturnCode, State}, Head, Body}} = R.
--spec post(Url :: string(), Data :: [tuple()]) -> http_response().
-post(Url, Data) ->
-    {ok, {{_, StatusCode, _}, _, Body}} =  httpc:request(post, {Url, request_headers(),
-                                                                "application/json",
-                                                                jiffy:encode(Data)}, [], []
-                                                        ),
-    {StatusCode == 200, jiffy:decode(Body)}.
+-spec http_post(Url :: string(), Body :: [tuple()]) -> http_response().
+http_post(Url, Body) ->
+    {ok, {{StatusCode, _}, _, Json}} = lhttpc:request(Url, "POST",
+                                                      request_headers(),
+                                                      jiffy:encode({Body}),
+                                                      ?HTTP_TIMEOUT
+                                                     ),
+    parse_api_response(StatusCode, Json).
 
 
 %% Construct the HTTP request headers to be sent to the MPower Payments server
@@ -139,10 +163,45 @@ request_headers() ->
         {ok, API_KEYS} when is_list(API_KEYS) ->
             [
              {"MP-Master-Key", proplists:get_value(master_key, API_KEYS)},
-             {"MP-Public-Key", proplists:get_value(public_key, API_KEYS)},
+             {"MP-Private-Key", proplists:get_value(private_key, API_KEYS)},
              {"MP-Token", proplists:get_value(token, API_KEYS)},              
-             {"User-Agent", ?MP_USER_AGENT}
+             {"User-Agent", ?MP_USER_AGENT},
+             {"Content-Type", "application/json"}
             ];
         _ ->
-            []
+            [{"User-Agent", ?MP_USER_AGENT},
+             {"Content-Type", "application/json"}
+            ]
     end.
+
+
+%% @doc Parses response from the MPower server.
+%%      The parsed data is an #mpower_response
+-spec parse_api_response(StatusCode, Body) -> #mpower_response{} when
+      StatusCode :: integer(),
+      Body :: json().
+parse_api_response(200, Body) ->
+    {Code, Text, Json} = decompose_response_body(Body),
+    #mpower_response{success = Code == ?MPOWER_API_SUCCESS_CODE, 
+                     code=Code, text=Text, data=Json, 
+                     http_status=200};
+parse_api_response(HttpStatusCode, Body) ->
+    {Code, Text, Json} = decompose_response_body(Body),
+    #mpower_response{success = Code == ?MPOWER_API_SUCCESS_CODE, 
+                     code=Code, text=Text, data=Json, 
+                     http_status=HttpStatusCode}.    
+
+%% @doc Decomposes the server response into 
+%%  reuseable information.
+-spec decompose_response_body(Body) -> {Code, Text, Json} when
+      Body :: json(),
+      Code :: binary(),
+      Text :: binary(),
+      Json :: proplist().
+decompose_response_body(Body) ->
+    {Json} = jiffy:decode(Body),
+    [Code] = jsonq:q([<<"response_code">>], Json),
+    [Text] = jsonq:q([<<"response_text">>], Json),
+    Json2 = proplists:delete(<<"response_code">>, Json),
+    Json3 = proplists:delete(<<"response_text">>, Json2),
+    {Code, Text, Json3}.

@@ -11,6 +11,38 @@
 -include("mpower.hrl").
 
 
+%%%----------------------------------------------------------------------
+%%% Prelude
+%%%----------------------------------------------------------------------
+mpower_test_() ->
+    {spawn, 
+     {setup,
+      fun setup/0,
+      fun teardown/1,
+      [
+       {"Create invoice",
+        fun create_invoice/0},
+       {"Confirm/check invoice status",
+        fun confirm_invoice/0},
+       {"Start an OPR(Onsite Payment Request)",
+        fun create_opr/0},
+       {"Complete an OPR process",
+        fun charge_opr/0},
+       {"Direct funds transfer",
+        fun credit_account/0},
+       {"Process a credit card",
+        fun process_card/0},
+       {"Return the corresponding URL for the resource",
+        fun get_rsc_endpoint/0},
+       {"Check the current application mode",
+        fun debug_mode/0},
+       {"Check the API access keys",
+        fun api_keys/0}
+     ]
+     }
+    }.
+
+
 %%%-------------------------------------------------------------------
 %%% Setup / Cleanup
 %%%-------------------------------------------------------------------
@@ -27,34 +59,23 @@ teardown(_) ->
 
 
 %%%-------------------------------------------------------------------
-%%% unit tests
+%%% tests
 %%%-------------------------------------------------------------------
-%% main test fixture
-mpower_test_() ->
-    {spawn, 
-     {setup,
-      fun setup/0,
-      fun teardown/1,
-      [
-       fun invoice_create/0,
-       fun invoice_confirm/0,
-       fun opr_create/0,
-       fun opr_charge/0,
-       fun direct_pay/0,
-       fun direct_card/0
-      ]
-     }
-    }.
-
-invoice_create() ->
+create_invoice() ->
      ?assertEqual(1, 1).
-invoice_confirm() ->
+confirm_invoice() ->
      ?assertEqual(1, 1).
-opr_create() ->
+create_opr() ->
      ?assertEqual(1, 1).
-opr_charge() ->
+charge_opr() ->
      ?assertEqual(1, 1).
-direct_pay() ->
+credit_account() ->
      ?assertEqual(1, 1).
-direct_card() ->             
+process_card() ->             
+    ?assertEqual(1, 1).
+get_rsc_endpoint() ->             
+    ?assertEqual(1, 1).
+debug_mode() ->             
+    ?assertEqual(1, 1).
+api_keys() ->             
     ?assertEqual(1, 1).

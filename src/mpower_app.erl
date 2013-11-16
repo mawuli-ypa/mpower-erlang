@@ -20,8 +20,10 @@
 
 start(_StartType, _StartArgs) ->
     ok = ensure_started(inets),
+    ok = ensure_started(crypto),
     ok = ensure_started(public_key),
     ok = ensure_started(ssl),
+    ok = ensure_started(lhttpc),
     mpower_sup:start_link().
 
 stop(_State) ->
