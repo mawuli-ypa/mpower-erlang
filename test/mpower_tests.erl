@@ -37,7 +37,9 @@ mpower_test_() ->
        {"Check the current application mode",
         fun debug_mode/0},
        {"Check the API access keys",
-        fun api_keys/0}
+        fun api_keys/0},
+       {"Format [{k,v}, ..] taxes into json encodable forms",
+        fun reformat_taxes/0}
      ]
      }
     }.
@@ -76,7 +78,7 @@ charge_opr() ->
     ?assertNotEqual(Res#mpower_response.code, ?MPOWER_API_SUCCESS_CODE).
 credit_account() ->
      ?assertEqual(1, 1).
-process_card() ->             
+process_card() ->
     Card = [{card_name, <<"Alfred Robert Rowe">>},
             {card_number, <<"4242424242424242">>}, 
             {card_cvc, <<"123">>},
@@ -102,8 +104,17 @@ get_rsc_endpoint() ->
     ?assertEqual(true, string:str(Url5, ?API_VERSION) > 0).
 
 debug_mode() ->
-    {ok, State} = application:get_env(mpower, debug),
-    ?assertEqual(State, true).
+    ?assertEqual(mpower:debug_mode(), true).
 api_keys() ->             
     {ok, API_KEYS} = application:get_env(mpower, api_keys),
     ?assertEqual(API_KEYS, ?MPOWER_TEST_API_KEYS).
+reformat_taxes() ->
+    Taxes = [{nhis_tax, 20},{vat, 15},{ama, 78}],
+    {ExpectedCount, ExpectedTaxes} = {3, [{"tax_0",{[{nhis_tax,20}]}},
+                                          {"tax_1",{[{vat,15}]}},
+                                          {"tax_2",{[{ama,78}]}}
+                                         ]
+                                     },
+    {Count, FormattedTaxes} = mpower:reformat_taxes(Taxes),
+    ?assertEqual(ExpectedCount, Count),
+    ?assertEqual(ExpectedTaxes, FormattedTaxes).
