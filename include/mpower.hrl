@@ -50,7 +50,8 @@
                          description :: string(),
                          store :: #mpower_store{},
                          custom_data :: [tuple()],
-                         actions :: [tuple()] %% [c{ancel_url, foo}, {return_url, bar}]
+                         return_url :: string(), 
+                         cancel_url :: string()
                         }).
 -record(mpower_opr, {account_alias :: mpower_account(),
                      description :: string(),

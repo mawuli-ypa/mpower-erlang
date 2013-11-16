@@ -10,18 +10,10 @@
 -author("Mawuli Adzaku <mawuli@mawuli.me>").
 -include("mpower.hrl").
 %% MPower Payments API calls
--export([create_opr/1,
-         charge_opr/2,        
-         create_invoice/1,
-         confirm_invoice/1,
-         credit_account/1,
-         process_card/1
-        ]).
-
--export([request_headers/0,
-        debug_mode/0,
-        get_rsc_endpoint/1
-        ]).
+-export([create_opr/1, charge_opr/2, create_invoice/1,
+         confirm_invoice/1, credit_account/1, process_card/1]).
+-export([request_headers/0, debug_mode/0, get_rsc_endpoint/1]).
+-export([reformat_taxes/1]).
 
 
 %%%-------------------------------------------------------------------
@@ -31,9 +23,35 @@
 -spec create_invoice(Invoice) -> http_response() when
       Invoice :: #mpower_invoice{} | proplist().
 create_invoice(Invoice) when is_record(Invoice, mpower_invoice) ->
-    ok;
+    Taxes = Invoice#mpower_invoice.taxes,
+    Items = Invoice#mpower_invoice.items,
+    CustomData = Invoice#mpower_invoice.custom_data,
+    Store = ?R2P(Invoice#mpower_invoice.store, mpower_store),
+    Actions = [{cancel_url, Invoice#mpower_invoice.cancel_url},
+               {return_url, Invoice#mpower_invoice.return_url}
+              ],
+    TotalAmount = Invoice#mpower_invoice.total_amount,
+    Description = Invoice#mpower_invoice.description,
+    InvoiceData = prepare_invoice_data(TotalAmount, Description, Items, 
+                                Taxes, Store, CustomData, Actions),
+    Url = get_rsc_endpoint(invoice_create),
+    Res = http_post(Url, InvoiceData),
+    Res;
 create_invoice(Invoice) ->
-    ok.
+    TotalAmount = proplist:get_value(total_amount, Invoice),
+    Description  = proplist:get_value(description, Invoice),
+    Items = proplist:get_value(items, Invoice),
+    Taxes = proplist:get_value(taxes, Invoice),
+    Store = proplist:get_value(store, Invoice),
+    CustomData = proplist:get_value(custom_data, Invoice),
+    Actions = [{cancel_url, proplist:get_value(cancel_url, Invoice)},
+               {return_url, proplist:get_value(return_url, Invoice)}
+              ],
+    InvoiceData = prepare_invoice_data(TotalAmount, Description, Items, 
+                                Taxes, Store, CustomData, Actions),
+    Url = get_rsc_endpoint(invoice_create),
+    Res = http_post(Url, InvoiceData),
+    Res.
 
 %% @doc Returns the status of the invoice
 -spec confirm_invoice(Token :: mpower_token()) -> http_response().
@@ -84,12 +102,11 @@ process_card(Card) ->
 -spec create_opr(Data) -> http_response() when
       Data ::  #mpower_opr{} | proplist().
 create_opr(Data)  when is_record(Data, mpower_opr) ->
-    OPR = [{invoice_data, {[{invoice, {[{total_amount, Data#mpower_opr.total_amount},
-                                        {description, Data#mpower_opr.description},
-                                        {store, {?R2P(Data#mpower_opr.store, mpower_store)}}
-                                       ]}},
-                            {opr_data, {[{account_alias, Data#mpower_opr.account_alias}]}}
-                           ]}}],
+    OPR = prepare_opr_data(Data#mpower_opr.total_amount,
+                           Data#mpower_opr.description,
+                           ?R2P(Data#mpower_opr.store, mpower_store),
+                           Data#mpower_opr.account_alias
+                          ),
     Url = get_rsc_endpoint(opr_create),
     Res = http_post(Url, OPR),
     Res;
@@ -98,12 +115,8 @@ create_opr(Data) ->
     Description = proplist:get_value(description, Data),
     Store = proplist:get_value(store, Data),
     AccountAlias = proplist:get_value(store, Data),
-    OPR = [{invoice_data, {[{invoice, {[{total_amount,TotalAmount},
-                                        {description, Description},
-                                        {store, {Store}}
-                                       ]}},
-                            {opr_data, {[{account_alias, AccountAlias}]}}
-                           ]}}],
+    OPR = prepare_opr_data(TotalAmount, Description, 
+                           Store, AccountAlias),
     Url = get_rsc_endpoint(opr_create),
     Res = http_post(Url, OPR),
     Res.
@@ -231,3 +244,51 @@ decompose_response_body(Body) ->
     Json2 = proplists:delete(<<"response_code">>, Json),
     Json3 = proplists:delete(<<"response_text">>, Json2),
     {Code, Text, Json3}.
+
+
+
+%% @doc Prepare OPR data for delivery to MPower server
+-spec prepare_opr_data(TotalAmount, Description, Store, AccountAlias) -> json() when 
+      TotalAmount :: amount(),
+      Description :: string(),
+      Store :: #mpower_store{},
+      AccountAlias :: mpower_account().
+prepare_opr_data(TotalAmount, Description, Store, AccountAlias) ->
+    OPR = [{invoice_data, 
+            {[{invoice, {[{total_amount,TotalAmount},
+                          {description, Description},
+                          {store, {Store}}
+                         ]}},
+              {opr_data, {[{account_alias, AccountAlias}]}}
+             ]}}],
+    OPR.
+
+
+%% @doc Prepare invoice data for submission to MPower
+-spec prepare_invoice_data(TotalAmount, Description, Items, Taxes, Store, CustomData, Actions) -> json() when
+      TotalAmount :: amount(),
+      Description :: string(),
+      Items :: proplist(),
+      Taxes :: proplist(),
+      Store :: #mpower_store{},
+      CustomData :: proplist(),
+      Actions :: proplist().
+prepare_invoice_data(TotalAmount, Description, Items, Taxes, Store, CustomData, Actions) ->
+    {_, FormattedTaxes} = reformat_taxes(Taxes), 
+    Invoice = [{invoice, {[{total_amount, TotalAmount},
+                           {description, Description},
+                           {taxes, {FormattedTaxes}},
+                           {items, {Items}}
+                          ]}},
+               {store, {Store}},
+               {custom_data, {CustomData}},
+               {actions, {Actions}}
+              ],
+    Invoice.
+
+%% @doc Reformat [{k,v},..] taxes into a json encodable object
+-spec reformat_taxes(Taxes :: proplist()) -> json().
+reformat_taxes(Taxes) ->
+    lists:foldl(fun(Tax, {Idx, L}) ->
+                        {Idx + 1, L ++ [{"tax_" ++ integer_to_list(Idx), {[Tax]}}]} end,
+                {0, []}, Taxes).
