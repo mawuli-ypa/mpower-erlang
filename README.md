@@ -115,6 +115,10 @@ Eshell V5.10.1  (abort with ^G)
 #mpower_response{success = false,code = <<"3001">>,
                  text = <<"Authentication Error! Account credentials are invalid. Try again">>,
                  data = [],http_status = 200}
+12> mpower:charge_opr(<<"test_ghabyd">>, <<"9606">>). %% charge_opr(Token, UserSubmittedToken).
+{mpower_response,false,<<"1001">>,
+                 <<"MPower::Integration::Exception, OPR Token is invalid, no request records found.">>,
+                 [],200}
 ````
 
 See the `test/mpower_test.erl` file for more examples on how to use the library

@@ -87,3 +87,6 @@
 -define(HTTP_TIMEOUT, 10000).
 %% All successful MPower requests have "00" as the response code
 -define(MPOWER_API_SUCCESS_CODE, <<"00">>).
+
+%% Turns a record into a proplist
+-define(R2P(Record,RecordType), lists:zip(record_info(fields, RecordType), tl(tuple_to_list(Record)))).

@@ -20,7 +20,8 @@
 
 -export([request_headers/0,
         debug_mode/0,
-        get_rsc_endpoint/1]).
+        get_rsc_endpoint/1
+        ]).
 
 
 %%%-------------------------------------------------------------------
@@ -83,9 +84,29 @@ process_card(Card) ->
 -spec create_opr(Data) -> http_response() when
       Data ::  #mpower_opr{} | proplist().
 create_opr(Data)  when is_record(Data, mpower_opr) ->
-    ok;
+    OPR = [{invoice_data, {[{invoice, {[{total_amount, Data#mpower_opr.total_amount},
+                                        {description, Data#mpower_opr.description},
+                                        {store, {?R2P(Data#mpower_opr.store, mpower_store)}}
+                                       ]}},
+                            {opr_data, {[{account_alias, Data#mpower_opr.account_alias}]}}
+                           ]}}],
+    Url = get_rsc_endpoint(opr_create),
+    Res = http_post(Url, OPR),
+    Res;
 create_opr(Data) ->
-    ok.
+    TotalAmount = proplist:get_value(total_amount, Data),
+    Description = proplist:get_value(description, Data),
+    Store = proplist:get_value(store, Data),
+    AccountAlias = proplist:get_value(store, Data),
+    OPR = [{invoice_data, {[{invoice, {[{total_amount,TotalAmount},
+                                        {description, Description},
+                                        {store, {Store}}
+                                       ]}},
+                            {opr_data, {[{account_alias, AccountAlias}]}}
+                           ]}}],
+    Url = get_rsc_endpoint(opr_create),
+    Res = http_post(Url, OPR),
+    Res.
 
 %% @doc Second and final stage of an OPR process.
 %%      This completes the OPR.
@@ -93,7 +114,12 @@ create_opr(Data) ->
       OPRToken :: mpower_token(),
       ConfirmationToken :: mpower_token().
 charge_opr(OPRToken, ConfirmationToken) ->
-    ok.
+    Url = get_rsc_endpoint(opr_charge),
+    Data = [{token, OPRToken}, 
+            {confirm_token , ConfirmationToken}],
+    Res = http_post(Url, Data),
+    Res.
+    
 
 %%%-------------------------------------------------------------------
 %%% utility functions
