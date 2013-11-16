@@ -137,4 +137,4 @@ MIT LICENSE(see LICENSE.txt)
 
 
 ## Authors
-Mawuli Adzaku <mawuli@mawuli.me>
+Mawuli Adzaku <mawuli at mawuli dot me>

@@ -3,7 +3,7 @@ otp_release:
   - R16B
   - R15B02
   - R15B01
-script: make all tests docs
+script: make all eunit
 branches:
   only:
     - master
