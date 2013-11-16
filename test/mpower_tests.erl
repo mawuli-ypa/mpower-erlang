@@ -68,14 +68,42 @@ confirm_invoice() ->
 create_opr() ->
      ?assertEqual(1, 1).
 charge_opr() ->
-     ?assertEqual(1, 1).
+    Res = mpower:charge_opr(<<"test_ghabyd">>, <<"9606">>),
+    %% test for successful HTTP request
+    ?assertEqual(Res#mpower_response.http_status, 200),
+    %% HTTP request might have succceeded but PAI call/operation failed
+    ?assertEqual(Res#mpower_response.success, false),
+    ?assertNotEqual(Res#mpower_response.code, ?MPOWER_API_SUCCESS_CODE).
 credit_account() ->
      ?assertEqual(1, 1).
 process_card() ->             
-    ?assertEqual(1, 1).
-get_rsc_endpoint() ->             
-    ?assertEqual(1, 1).
-debug_mode() ->             
-    ?assertEqual(1, 1).
+    Card = [{card_name, <<"Alfred Robert Rowe">>},
+            {card_number, <<"4242424242424242">>}, 
+            {card_cvc, <<"123">>},
+            {exp_month, <<"06">>}, 
+            {exp_year, <<"2010">>}, 
+            {amount, <<"300">>}
+           ],
+    Res = mpower:process_card(Card),
+    %% this should fail since the card is invalid
+    ?assertEqual(Res#mpower_response.success, false).
+get_rsc_endpoint() ->
+    Url = mpower:get_rsc_endpoint(opr_charge),
+    ?assertEqual(true, string:str(Url, "opr/charge") > 0),
+    Url1 = mpower:get_rsc_endpoint(opr_create),
+    ?assertEqual(true, string:str(Url1, "opr/create") > 0),
+    Url2 = mpower:get_rsc_endpoint(invoice_confirm),
+    ?assertEqual(true, string:str(Url2, "checkout-invoice/confirm") > 0),
+    Url3 = mpower:get_rsc_endpoint(invoice_create),
+    ?assertEqual(true, string:str(Url3, "sandbox") > 0),
+    Url4 = mpower:get_rsc_endpoint(directcard_process),
+    ?assertEqual(true, string:str(Url4, "https") > 0),
+    Url5 = mpower:get_rsc_endpoint(directpay_process),
+    ?assertEqual(true, string:str(Url5, ?API_VERSION) > 0).
+
+debug_mode() ->
+    {ok, State} = application:get_env(mpower, debug),
+    ?assertEqual(State, true).
 api_keys() ->             
-    ?assertEqual(1, 1).
+    {ok, API_KEYS} = application:get_env(mpower, api_keys),
+    ?assertEqual(API_KEYS, ?MPOWER_TEST_API_KEYS).
