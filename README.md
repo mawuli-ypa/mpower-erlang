@@ -133,7 +133,7 @@ This makes it easy for consumption of the returned data, diagnosing errors etc.
 
 
 ## LICENSE
-MIT LICENSE(see LICENSE.txt)
+MIT LICENSE(see LICENSE)
 
 
 ## Authors
