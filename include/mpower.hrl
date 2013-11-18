@@ -71,9 +71,9 @@
 %% api keys used for testing
 -define(API_VERSION, "v1").
 -define(MPOWER_TEST_API_KEYS, [{master_key, "5b9f531a-fbb8-487a-8045-3b4c7ac5acee"},
-                         {private_key, "test_private_oGslgmzSNL3RSkjlsnPOsZZg9IA"},
-                         {token, "ff1d576409b2587cc1c2"}
-                         ]). 
+                               {private_key, "test_private_oGslgmzSNL3RSkjlsnPOsZZg9IA"},
+                               {token, "ff1d576409b2587cc1c2"}
+                              ]). 
 %% Sandbox Endpoint
 -define(SANDBOX_ENDPOINT, "https://app.mpowerpayments.com/sandbox-api/" ++ ?API_VERSION ++ "/").
 

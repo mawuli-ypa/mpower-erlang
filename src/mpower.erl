@@ -38,17 +38,23 @@ create_invoice(Invoice) when is_record(Invoice, mpower_invoice) ->
     Res = http_post(Url, InvoiceData),
     Res;
 create_invoice(Invoice) ->
-    TotalAmount = proplist:get_value(total_amount, Invoice),
-    Description  = proplist:get_value(description, Invoice),
-    Items = proplist:get_value(items, Invoice),
-    Taxes = proplist:get_value(taxes, Invoice),
-    Store = proplist:get_value(store, Invoice),
-    CustomData = proplist:get_value(custom_data, Invoice),
-    Actions = [{cancel_url, proplist:get_value(cancel_url, Invoice)},
-               {return_url, proplist:get_value(return_url, Invoice)}
+    Store = proplists:get_value(store, Invoice),
+    Store1 = if 
+                 is_record(Store, mpower_store) -> 
+                     ?R2P(Store, mpower_store);
+                 true ->
+                     Store
+              end,
+    TotalAmount = proplists:get_value(total_amount, Invoice),
+    Description  = proplists:get_value(description, Invoice),
+    Items = proplists:get_value(items, Invoice),
+    Taxes = proplists:get_value(taxes, Invoice),
+    CustomData = proplists:get_value(custom_data, Invoice),
+    Actions = [{cancel_url, proplists:get_value(cancel_url, Invoice)},
+               {return_url, proplists:get_value(return_url, Invoice)}
               ],
     InvoiceData = prepare_invoice_data(TotalAmount, Description, Items, 
-                                Taxes, Store, CustomData, Actions),
+                                Taxes, Store1, CustomData, Actions),
     Url = get_rsc_endpoint(invoice_create),
     Res = http_post(Url, InvoiceData),
     Res.
@@ -56,7 +62,13 @@ create_invoice(Invoice) ->
 %% @doc Returns the status of the invoice
 -spec confirm_invoice(Token :: mpower_token()) -> http_response().
 confirm_invoice(Token) ->
-    Url = get_rsc_endpoint(invoice_confirm) ++ Token,
+    Token1 = if
+                 is_binary(Token) -> 
+                     binary_to_list(Token);
+                 true ->
+                     Token
+             end,
+    Url = get_rsc_endpoint(invoice_confirm) ++ Token1,
     Res = http_get(Url),
     Res.
 
@@ -100,7 +112,7 @@ process_card(Card) ->
 %%%-------------------------------------------------------------------
 %% @doc initiate an OPR(Onsite Payment Request)
 -spec create_opr(Data) -> http_response() when
-      Data ::  #mpower_opr{} | proplist().
+      Data :: #mpower_opr{} | proplist().
 create_opr(Data)  when is_record(Data, mpower_opr) ->
     OPR = prepare_opr_data(Data#mpower_opr.total_amount,
                            Data#mpower_opr.description,
@@ -111,10 +123,10 @@ create_opr(Data)  when is_record(Data, mpower_opr) ->
     Res = http_post(Url, OPR),
     Res;
 create_opr(Data) ->
-    TotalAmount = proplist:get_value(total_amount, Data),
-    Description = proplist:get_value(description, Data),
-    Store = proplist:get_value(store, Data),
-    AccountAlias = proplist:get_value(store, Data),
+    TotalAmount = proplists:get_value(total_amount, Data),
+    Description = proplists:get_value(description, Data),
+    Store = proplists:get_value(store, Data),
+    AccountAlias = proplists:get_value(account_alias, Data),
     OPR = prepare_opr_data(TotalAmount, Description, 
                            Store, AccountAlias),
     Url = get_rsc_endpoint(opr_create),
@@ -290,5 +302,5 @@ prepare_invoice_data(TotalAmount, Description, Items, Taxes, Store, CustomData, 
 -spec reformat_taxes(Taxes :: proplist()) -> json().
 reformat_taxes(Taxes) ->
     lists:foldl(fun(Tax, {Idx, L}) ->
-                        {Idx + 1, L ++ [{"tax_" ++ integer_to_list(Idx), {[Tax]}}]} end,
+                        {Idx + 1, L ++ [{list_to_binary("tax_" ++ integer_to_list(Idx)), {[Tax]}}]} end,
                 {0, []}, Taxes).
