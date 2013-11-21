@@ -1,7 +1,10 @@
 MPower Payments Erlang client library
 =====================================
 
+[![Build Status](https://travis-ci.org/mawuli-ypa/mpower-erlang.png?branch=master)](https://travis-ci.org/mawuli-ypa/mpower-erlang)
+
 This is a minimal Erlang client library for [MPower Payments](http://mpowerpayments.com).
+
 This library currently supports the following operations:
 
 * Create invoice
